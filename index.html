@@ -2,15 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mohamed's Google Dino Game Recreation!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mohamed's Dino Run</title>
     <style>
-        body { margin: 0; background: #87CEEB; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-        canvas { display: block; background: #87CEEB; }
+        body { 
+            margin: 0; 
+            background: #87CEEB; 
+            overflow: hidden; 
+            font-family: 'Courier New', Courier, monospace; 
+            /* Prevents pulling to refresh on mobile */
+            overscroll-behavior: none; 
+        }
+        
+        canvas { 
+            display: block; 
+            background: #87CEEB; 
+            touch-action: none; /* Critical for mobile: stops scrolling while playing */
+        }
+
         #status { 
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            color: #333; font-size: 24px; font-weight: bold; text-align: center;
-            text-shadow: 1px 1px 2px white;
+            position: absolute; 
+            top: 15%; 
+            left: 50%; 
+            transform: translateX(-50%);
+            color: #333; 
+            font-size: 5vw; /* Responsive size based on screen width */
+            font-weight: bold; 
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+            width: 90%;
+            pointer-events: none; /* Let clicks pass through to the canvas */
+        }
+
+        /* Adjust text for larger screens like iPad/PC so it doesn't get TOO big */
+        @media (min-width: 768px) {
+            #status { font-size: 28px; }
         }
     </style>
 </head>
@@ -40,7 +66,7 @@
             images[key].src = imagePaths[key];
             images[key].onload = () => {
                 if (++loadedImages === totalImages) {
-                    statusDiv.innerText = "Ready? - PRESS SPACE TO START AND JUMP OR ON MOBILE AND IPAD TAP ON YOUR SCREEN TO START GAME AND JUMP";
+                    statusDiv.innerHTML = "READY?<br>TAP OR PRESS SPACE TO START";
                     resize();
                     initGame();
                     requestAnimationFrame(drawLoop);
@@ -53,40 +79,59 @@
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            if (dino) dino.y = canvas.height - 135; 
+            // Place ground relative to screen height
+            const groundY = canvas.height - 135;
+            if (dino) dino.y = groundY; 
         }
         window.addEventListener('resize', resize);
 
         function initGame() {
             const groundY = canvas.height - 135;
-            dino = { x: 50, y: groundY, w: 75, h: 80, dy: 0, grounded: true };
+            // Responsive dino size (smaller on mobile)
+            const sizeMult = window.innerWidth < 600 ? 0.8 : 1;
+            dino = { 
+                x: 50, 
+                y: groundY, 
+                w: 75 * sizeMult, 
+                h: 80 * sizeMult, 
+                dy: 0, 
+                grounded: true 
+            };
             obstacles = [];
             clouds = []; 
-            gameSpeed = 3.2; 
+            gameSpeed = window.innerWidth < 600 ? 4 : 5; // Slightly faster feel on mobile
             score = 0;
             frameCount = 0;
             isGameOver = false;
-            gameStarted = false; // The game starts "paused"
+            gameStarted = false;
+        }
+
+        // INPUT HANDLING (Universal)
+        function handleAction(e) {
+            if (e) e.preventDefault(); // Prevent double triggers on some mobile browsers
+
+            if (!gameStarted) {
+                gameStarted = true;
+                statusDiv.innerText = "";
+                return;
+            }
+            if (isGameOver) {
+                initGame();
+                statusDiv.innerText = "";
+            } else if (dino.grounded) {
+                dino.dy = -18; 
+                dino.grounded = false;
+            }
         }
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
-                if (!gameStarted) {
-                    gameStarted = true; // Start the movement
-                    statusDiv.innerText = "";
-                }
-                if (isGameOver) {
-                    initGame();
-                    statusDiv.innerText = "";
-                } else if (dino.grounded) {
-                    dino.dy = -19; 
-                    dino.grounded = false;
-                }
-            }
+            if (e.code === 'Space' || e.code === 'ArrowUp') handleAction();
         });
 
+        // Touch listener for Mobile/iPad
+        window.addEventListener('touchstart', handleAction, { passive: false });
+
         function update() {
-            // STOP movement if game hasn't started or is over
             if (!gameStarted || isGameOver) return;
 
             frameCount++;
@@ -100,25 +145,27 @@
                 dino.grounded = true;
             }
 
-            gameSpeed += 0.0012; 
-            score += (gameSpeed / 50);
+            gameSpeed += 0.0015; 
+            score += (gameSpeed / 40);
 
             if (Math.random() < 0.01) {
-                clouds.push({ x: canvas.width, y: Math.random() * 150, w: 90, h: 30 });
+                clouds.push({ x: canvas.width, y: Math.random() * (canvas.height/3), w: 90, h: 30 });
             }
             clouds.forEach(c => c.x -= 1.5);
 
-            let spawnInterval = Math.max(60, Math.floor(450 / gameSpeed));
+            let spawnInterval = Math.max(50, Math.floor(500 / gameSpeed));
             if (frameCount % spawnInterval === 0) {
-                obstacles.push({ x: canvas.width, y: groundLevel - 45, w: 110, h: 110 });
+                // Adjusting hitboxes to be more forgiving on touch screens
+                obstacles.push({ x: canvas.width, y: groundLevel - 45, w: 90, h: 90 });
             }
 
             obstacles.forEach(o => {
                 o.x -= gameSpeed;
-                if (dino.x < o.x + o.w - 35 && dino.x + dino.w - 35 > o.x && 
-                    dino.y < o.y + o.h - 15 && dino.y + dino.h - 15 > o.y) {
+                // Collision logic
+                if (dino.x < o.x + o.w - 20 && dino.x + dino.w - 20 > o.x && 
+                    dino.y < o.y + o.h - 10 && dino.y + dino.h - 10 > o.y) {
                     isGameOver = true;
-                    statusDiv.innerText = "GAME OVER - Press Space";
+                    statusDiv.innerHTML = "GAME OVER<br>TAP TO RESTART";
                 }
             });
             obstacles = obstacles.filter(o => o.x > -200);
@@ -127,21 +174,18 @@
         function draw() {
             ctx.fillStyle = "#87CEEB"; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
             clouds.forEach(c => ctx.drawImage(images.cloud, c.x, c.y, c.w, c.h));
 
-            const groundHeight = 100;
+            const groundHeight = 110;
             const groundTop = canvas.height - groundHeight;
+            
+            // Sand
             ctx.fillStyle = "#f2d16b"; 
             ctx.fillRect(0, groundTop, canvas.width, groundHeight);
+            // Ground Line
             ctx.fillStyle = "#dcc06b"; 
             ctx.fillRect(0, groundTop, canvas.width, 6);
-
-            ctx.fillStyle = "#c2a13e";
-            for (let i = 0; i < 20; i++) {
-                let speckX = (i * 150 - (frameCount * gameSpeed)) % canvas.width;
-                if (speckX < 0) speckX += canvas.width;
-                ctx.fillRect(speckX, groundTop + 40, 3, 3);
-            }
 
             let currentImg = images.dino;
             if (dino.grounded && !isGameOver && gameStarted) {
@@ -153,9 +197,11 @@
                 ctx.drawImage(images.cactus, o.x, o.y, o.w, o.h);
             });
 
+            // Scoreboard (Adjusted for mobile visibility)
             ctx.fillStyle = "#333";
-            ctx.font = "bold 22px 'Courier New'";
-            ctx.fillText(`SCORE: ${Math.floor(score).toString().padStart(5, '0')}`, 30, 45);
+            const fontSize = window.innerWidth < 600 ? 18 : 22;
+            ctx.font = `bold ${fontSize}px 'Courier New'`;
+            ctx.fillText(`SCORE: ${Math.floor(score).toString().padStart(5, '0')}`, 20, 40);
         }
 
         function drawLoop() {
