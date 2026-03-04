@@ -2,20 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mohamed's Google Dino Game Recreation!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mohamed's Dino Mobile</title>
     <style>
-        body { margin: 0; background: #87CEEB; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
+        body { 
+            margin: 0; 
+            background: #87CEEB; 
+            overflow: hidden; 
+            font-family: 'Courier New', Courier, monospace; 
+            /* Prevents pull-to-refresh and accidental zooming */
+            touch-action: none; 
+            -webkit-user-select: none;
+            user-select: none;
+        }
         canvas { display: block; background: #87CEEB; }
         #status { 
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            color: #333; font-size: 24px; font-weight: bold; text-align: center;
-            text-shadow: 1px 1px 2px white;
+            position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+            color: #333; font-size: 20px; font-weight: bold; text-align: center;
+            width: 80%; pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div id="status">LOADING ASSETS...</div>
+    <div id="status">TAP SCREEN TO START</div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -23,76 +32,68 @@
         const ctx = canvas.getContext('2d');
         const statusDiv = document.getElementById('status');
 
-        const imagePaths = {
-            dino: 'dino.png',
-            run1: 'dino-run1.png',
-            run2: 'dino-run2.png',
-            cactus: 'cactus1.png', 
-            cloud: 'cloud.png'
-        };
-        
-        const images = {};
-        let loadedImages = 0;
-        const totalImages = Object.keys(imagePaths).length;
-
-        for (let key in imagePaths) {
-            images[key] = new Image();
-            images[key].src = imagePaths[key];
-            images[key].onload = () => {
-                if (++loadedImages === totalImages) {
-                    statusDiv.innerText = "Ready? - PRESS SPACE TO START or tap on your screen on mobile!!";
-                    resize();
-                    initGame();
-                    requestAnimationFrame(drawLoop);
-                }
-            };
-        }
-
         let dino, obstacles, clouds, gameSpeed, isGameOver, score, frameCount, gameStarted;
+
+        // Using a simple flag since we aren't loading external images for this demo
+        // If you have your images, you can re-enable the image loading logic.
+        const assetsLoaded = true; 
 
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            if (dino) dino.y = canvas.height - 135; 
+            if (dino) {
+                dino.y = canvas.height - 135;
+            }
         }
-        window.addEventListener('resize', resize);
 
         function initGame() {
             const groundY = canvas.height - 135;
-            dino = { x: 50, y: groundY, w: 75, h: 80, dy: 0, grounded: true };
+            // Slightly smaller hitboxes for mobile playability
+            dino = { x: 50, y: groundY, w: 50, h: 50, dy: 0, grounded: true };
             obstacles = [];
             clouds = []; 
-            gameSpeed = 3.2; 
+            gameSpeed = 4; 
             score = 0;
             frameCount = 0;
             isGameOver = false;
-            gameStarted = false; // The game starts "paused"
+            gameStarted = false;
         }
 
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
-                if (!gameStarted) {
-                    gameStarted = true; // Start the movement
-                    statusDiv.innerText = "";
-                }
-                if (isGameOver) {
-                    initGame();
-                    statusDiv.innerText = "";
-                } else if (dino.grounded) {
-                    dino.dy = -19; 
-                    dino.grounded = false;
-                }
+        // --- INPUT HANDLING ---
+        function handleInput(e) {
+            if (e) e.preventDefault(); // Stop scrolling/bouncing
+
+            if (!gameStarted) {
+                gameStarted = true;
+                statusDiv.innerText = "";
+                return;
             }
+
+            if (isGameOver) {
+                initGame();
+                statusDiv.innerText = "";
+            } else if (dino.grounded) {
+                dino.dy = -16; // Jumping force
+                dino.grounded = false;
+            }
+        }
+
+        // Keyboard support
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') handleInput(e);
         });
 
+        // Mobile Touch support
+        window.addEventListener('touchstart', handleInput, { passive: false });
+
         function update() {
-            // STOP movement if game hasn't started or is over
             if (!gameStarted || isGameOver) return;
 
             frameCount++;
-            dino.dy += 0.8; 
+            dino.dy += 0.8; // Gravity
             dino.y += dino.dy;
-            const groundLevel = canvas.height - 135;
+            
+            const groundLevel = canvas.height - 100 - dino.h;
 
             if (dino.y > groundLevel) {
                 dino.y = groundLevel;
@@ -100,62 +101,62 @@
                 dino.grounded = true;
             }
 
-            gameSpeed += 0.0012; 
-            score += (gameSpeed / 50);
+            gameSpeed += 0.001; 
+            score += 0.1;
 
-            if (Math.random() < 0.01) {
-                clouds.push({ x: canvas.width, y: Math.random() * 150, w: 90, h: 30 });
+            // Spawn Clouds
+            if (frameCount % 120 === 0) {
+                clouds.push({ x: canvas.width, y: Math.random() * 100 + 50, w: 60, h: 20 });
             }
-            clouds.forEach(c => c.x -= 1.5);
+            clouds.forEach(c => c.x -= 1);
 
-            let spawnInterval = Math.max(60, Math.floor(450 / gameSpeed));
+            // Spawn Obstacles
+            let spawnInterval = Math.max(50, Math.floor(300 / gameSpeed));
             if (frameCount % spawnInterval === 0) {
-                obstacles.push({ x: canvas.width, y: groundLevel - 45, w: 110, h: 110 });
+                obstacles.push({ x: canvas.width, y: canvas.height - 100 - 40, w: 30, h: 40 });
             }
 
             obstacles.forEach(o => {
                 o.x -= gameSpeed;
-                if (dino.x < o.x + o.w - 35 && dino.x + dino.w - 35 > o.x && 
-                    dino.y < o.y + o.h - 15 && dino.y + dino.h - 15 > o.y) {
+                // Collision Logic
+                if (dino.x < o.x + o.w && dino.x + dino.w > o.x && 
+                    dino.y < o.y + o.h && dino.y + dino.h > o.y) {
                     isGameOver = true;
-                    statusDiv.innerText = "GAME OVER - Press Space";
+                    statusDiv.innerText = "GAME OVER\nTAP TO RESTART";
                 }
             });
-            obstacles = obstacles.filter(o => o.x > -200);
+            obstacles = obstacles.filter(o => o.x > -100);
         }
 
         function draw() {
+            // Background
             ctx.fillStyle = "#87CEEB"; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            clouds.forEach(c => ctx.drawImage(images.cloud, c.x, c.y, c.w, c.h));
 
+            // Clouds (Simple Rectangles)
+            ctx.fillStyle = "white";
+            clouds.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
+
+            // Ground
             const groundHeight = 100;
             const groundTop = canvas.height - groundHeight;
             ctx.fillStyle = "#f2d16b"; 
             ctx.fillRect(0, groundTop, canvas.width, groundHeight);
-            ctx.fillStyle = "#dcc06b"; 
-            ctx.fillRect(0, groundTop, canvas.width, 6);
 
-            ctx.fillStyle = "#c2a13e";
-            for (let i = 0; i < 20; i++) {
-                let speckX = (i * 150 - (frameCount * gameSpeed)) % canvas.width;
-                if (speckX < 0) speckX += canvas.width;
-                ctx.fillRect(speckX, groundTop + 40, 3, 3);
-            }
+            // Dino (Placeholder: Green Square)
+            ctx.fillStyle = "#228B22";
+            ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
 
-            let currentImg = images.dino;
-            if (dino.grounded && !isGameOver && gameStarted) {
-                currentImg = (Math.floor(frameCount / 8) % 2 === 0) ? images.run1 : images.run2;
-            }
-            ctx.drawImage(currentImg, dino.x, dino.y, dino.w, dino.h);
-
+            // Obstacles (Placeholder: Red Rects)
+            ctx.fillStyle = "#B22222";
             obstacles.forEach(o => {
-                ctx.drawImage(images.cactus, o.x, o.y, o.w, o.h);
+                ctx.fillRect(o.x, o.y, o.w, o.h);
             });
 
+            // Score
             ctx.fillStyle = "#333";
-            ctx.font = "bold 22px 'Courier New'";
-            ctx.fillText(`SCORE: ${Math.floor(score).toString().padStart(5, '0')}`, 30, 45);
+            ctx.font = "bold 20px 'Courier New'";
+            ctx.fillText(`SCORE: ${Math.floor(score)}`, 20, 40);
         }
 
         function drawLoop() {
@@ -163,6 +164,13 @@
             draw();
             requestAnimationFrame(drawLoop);
         }
+
+        // Initialize
+        resize();
+        initGame();
+        window.addEventListener('resize', resize);
+        requestAnimationFrame(drawLoop);
+
     </script>
 </body>
 </html>
