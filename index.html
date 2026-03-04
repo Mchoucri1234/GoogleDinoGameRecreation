@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mohamed's Dino Run - Dynamic Difficulty</title>
+    <title>Mohamed's Infinite Dino</title>
     <style>
         body { 
             margin: 0; 
@@ -11,31 +11,15 @@
             overflow: hidden; 
             font-family: 'Courier New', Courier, monospace; 
             overscroll-behavior: none; 
+            transition: background 1.5s ease;
         }
-        
-        canvas { 
-            display: block; 
-            background: #87CEEB; 
-            touch-action: none;
-        }
-
+        canvas { display: block; touch-action: none; }
         #status { 
-            position: absolute; 
-            top: 15%; 
-            left: 50%; 
-            transform: translateX(-50%);
-            color: #333; 
-            font-size: 5vw; 
-            font-weight: bold; 
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
-            width: 90%;
-            pointer-events: none;
+            position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+            color: #333; font-size: 5vw; font-weight: bold; text-align: center;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.8); width: 90%; pointer-events: none;
         }
-
-        @media (min-width: 768px) {
-            #status { font-size: 28px; }
-        }
+        @media (min-width: 768px) { #status { font-size: 28px; } }
     </style>
 </head>
 <body>
@@ -48,11 +32,8 @@
         const statusDiv = document.getElementById('status');
 
         const imagePaths = {
-            dino: 'dino.png',
-            run1: 'dino-run1.png',
-            run2: 'dino-run2.png',
-            cactus: 'cactus1.png', 
-            cloud: 'cloud.png'
+            dino: 'dino.png', run1: 'dino-run1.png', run2: 'dino-run2.png',
+            cactus: 'cactus1.png', cloud: 'cloud.png'
         };
         
         const images = {};
@@ -64,7 +45,7 @@
             images[key].src = imagePaths[key];
             images[key].onload = () => {
                 if (++loadedImages === totalImages) {
-                    statusDiv.innerHTML = "READY?<br>TAP OR PRESS SPACE TO START";
+                    statusDiv.innerHTML = "READY?<br>TAP TO START";
                     resize();
                     initGame();
                     requestAnimationFrame(drawLoop);
@@ -72,58 +53,45 @@
             };
         }
 
-        let dino, obstacles, clouds, gameSpeed, isGameOver, score, frameCount, gameStarted;
+        let dino, obstacles, clouds, gameSpeed, isGameOver, score, highscore, frameCount, gameStarted, isNight;
+
+        // Load Highscore from browser storage
+        highscore = localStorage.getItem("dinoHighscore") || 0;
 
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            const groundY = canvas.height - 135;
-            if (dino) dino.y = groundY; 
         }
         window.addEventListener('resize', resize);
 
         function initGame() {
             const groundY = canvas.height - 135;
-            const sizeMult = window.innerWidth < 600 ? 0.8 : 1;
-            dino = { 
-                x: 50, 
-                y: groundY, 
-                w: 75 * sizeMult, 
-                h: 80 * sizeMult, 
-                dy: 0, 
-                grounded: true 
-            };
+            const isMobile = window.innerWidth < 600;
+            const sizeMult = isMobile ? 0.8 : 1;
+            
+            dino = { x: 50, y: groundY, w: 75 * sizeMult, h: 80 * sizeMult, dy: 0, grounded: true };
             obstacles = [];
             clouds = []; 
             
-            // ADJUSTED: Start much slower (was 5, now 3.5)
-            gameSpeed = 3.5; 
+            // MOBILE ADJUSTMENT: Starts at 4.2 vs 3.5 on PC
+            gameSpeed = isMobile ? 4.2 : 3.5; 
             
             score = 0;
             frameCount = 0;
             isGameOver = false;
             gameStarted = false;
+            isNight = false;
+            document.body.style.background = "#87CEEB";
         }
 
         function handleAction(e) {
             if (e) e.preventDefault(); 
-            if (!gameStarted) {
-                gameStarted = true;
-                statusDiv.innerText = "";
-                return;
-            }
-            if (isGameOver) {
-                initGame();
-                statusDiv.innerText = "";
-            } else if (dino.grounded) {
-                dino.dy = -18; 
-                dino.grounded = false;
-            }
+            if (!gameStarted) { gameStarted = true; statusDiv.innerText = ""; return; }
+            if (isGameOver) { initGame(); statusDiv.innerText = ""; } 
+            else if (dino.grounded) { dino.dy = -18; dino.grounded = false; }
         }
 
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') handleAction();
-        });
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') handleAction(); });
         window.addEventListener('touchstart', handleAction, { passive: false });
 
         function update() {
@@ -140,68 +108,80 @@
                 dino.grounded = true;
             }
 
-            // --- DIFFICULTY LOGIC ---
-            // 60 frames per second * 10 seconds = 600 frames
-            if (frameCount < 600) {
-                // The first 10 seconds: stay very slow
-                gameSpeed += 0.0005; 
-            } else {
-                // After 10 seconds: ramp up the speed significantly
-                gameSpeed += 0.006; 
+            // SPEED RAMP (Slightly more aggressive on mobile)
+            const isMobile = window.innerWidth < 600;
+            const accelRate = isMobile ? 0.008 : 0.007;
+            const maxSpeed = isMobile ? 18 : 16; 
+
+            if (gameSpeed < maxSpeed) {
+                if (frameCount < 600) { gameSpeed += 0.0006; } // 10s Slow Start
+                else { gameSpeed += accelRate; } 
             }
 
             score += (gameSpeed / 40);
-
-            if (Math.random() < 0.01) {
-                clouds.push({ x: canvas.width, y: Math.random() * (canvas.height/3), w: 90, h: 30 });
+            if (score > highscore) {
+                highscore = score;
+                localStorage.setItem("dinoHighscore", highscore);
             }
-            clouds.forEach(c => c.x -= 1.5);
 
-            // Adjust spawn rate so it stays easy initially, then gets hectic
-            let spawnInterval = Math.max(30, Math.floor(700 / gameSpeed));
+            // DAY/NIGHT
+            let currentCycle = Math.floor(score / 1000);
+            if (currentCycle % 2 === 1 && !isNight) {
+                isNight = true;
+                document.body.style.background = "#2c3e50";
+            } else if (currentCycle % 2 === 0 && isNight) {
+                isNight = false;
+                document.body.style.background = "#87CEEB";
+            }
+
+            // Spawning
+            let spawnInterval = Math.max(28, Math.floor(700 / gameSpeed));
             if (frameCount % spawnInterval === 0) {
                 obstacles.push({ x: canvas.width, y: groundLevel - 45, w: 90, h: 90 });
             }
 
             obstacles.forEach(o => {
                 o.x -= gameSpeed;
-                if (dino.x < o.x + o.w - 20 && dino.x + dino.w - 20 > o.x && 
-                    dino.y < o.y + o.h - 10 && dino.y + dino.h - 10 > o.y) {
+                if (dino.x < o.x + o.w - 25 && dino.x + dino.w - 25 > o.x && 
+                    dino.y < o.y + o.h - 15 && dino.y + dino.h - 15 > o.y) {
                     isGameOver = true;
                     statusDiv.innerHTML = "GAME OVER<br>TAP TO RESTART";
                 }
             });
-            obstacles = obstacles.filter(o => o.x > -200);
+
+            obstacles = obstacles.filter(o => o.x > -100);
+            if (Math.random() < 0.01) clouds.push({ x: canvas.width, y: Math.random() * (canvas.height/3), w: 90, h: 30 });
+            clouds.forEach(c => c.x -= 1.5);
+            clouds = clouds.filter(c => c.x > -100);
         }
 
         function draw() {
-            ctx.fillStyle = "#87CEEB"; 
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = isNight ? 0.4 : 1.0;
             clouds.forEach(c => ctx.drawImage(images.cloud, c.x, c.y, c.w, c.h));
+            ctx.globalAlpha = 1.0;
 
-            const groundHeight = 110;
-            const groundTop = canvas.height - groundHeight;
-            
-            ctx.fillStyle = "#f2d16b"; 
-            ctx.fillRect(0, groundTop, canvas.width, groundHeight);
-            ctx.fillStyle = "#dcc06b"; 
+            const groundTop = canvas.height - 110;
+            ctx.fillStyle = isNight ? "#a68d4a" : "#f2d16b"; 
+            ctx.fillRect(0, groundTop, canvas.width, 110);
+            ctx.fillStyle = isNight ? "#7d6a37" : "#dcc06b"; 
             ctx.fillRect(0, groundTop, canvas.width, 6);
 
             let currentImg = images.dino;
             if (dino.grounded && !isGameOver && gameStarted) {
                 currentImg = (Math.floor(frameCount / 8) % 2 === 0) ? images.run1 : images.run2;
             }
+            
+            if (isNight) ctx.filter = "brightness(0.8) contrast(1.2)";
             ctx.drawImage(currentImg, dino.x, dino.y, dino.w, dino.h);
+            obstacles.forEach(o => ctx.drawImage(images.cactus, o.x, o.y, o.w, o.h));
+            ctx.filter = "none";
 
-            obstacles.forEach(o => {
-                ctx.drawImage(images.cactus, o.x, o.y, o.w, o.h);
-            });
-
-            ctx.fillStyle = "#333";
-            const fontSize = window.innerWidth < 600 ? 18 : 22;
-            ctx.font = `bold ${fontSize}px 'Courier New'`;
-            ctx.fillText(`SCORE: ${Math.floor(score).toString().padStart(5, '0')}`, 20, 40);
+            // UI
+            ctx.fillStyle = isNight ? "#fff" : "#333";
+            const fontS = window.innerWidth < 600 ? 16 : 20;
+            ctx.font = `bold ${fontS}px 'Courier New'`;
+            ctx.fillText(`HI: ${Math.floor(highscore).toString().padStart(5, '0')} SCORE: ${Math.floor(score).toString().padStart(5, '0')}`, 20, 40);
         }
 
         function drawLoop() {
