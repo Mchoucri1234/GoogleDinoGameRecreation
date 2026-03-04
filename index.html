@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mohameds GoogleDinoGame Recreation</title>
+    <title>Mohameds Dino Game</title>
     <style>
         body, html {
             margin: 0;
@@ -13,85 +13,101 @@
             overflow: hidden;
             background-color: #222;
             color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             font-family: sans-serif;
-            touch-action: none; /* Prevents ALL browser gestures like pinch-to-zoom */
+            /* Prevents iPad from zooming or scrolling when you tap fast */
+            touch-action: none; 
         }
 
-        #game-screen {
+        #game-container {
+            position: relative;
             width: 100vw;
             height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            user-select: none; /* Prevents text selection while tapping */
-            -webkit-user-select: none;
+            justify-content: flex-end; /* Puts the player at the bottom */
         }
 
-        .box {
-            width: 100px;
-            height: 100px;
+        /* This is the ground line */
+        #ground {
+            width: 100%;
+            height: 2px;
+            background-color: #555;
+            margin-bottom: 100px; /* Distance from bottom of screen */
+        }
+
+        #player {
+            width: 50px;
+            height: 50px;
             background-color: #00ff00;
-            transition: transform 0.1s;
+            position: absolute;
+            bottom: 100px; /* Starts on the ground */
+            transition: transform 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
         }
 
-        .jump {
-            transform: translateY(-150px); /* Increased jump height for visibility */
-            background-color: #ff00ff;
+        /* The Jump Animation */
+        .jumping {
+            transform: translateY(-150px);
+        }
+
+        #instructions {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            padding: 0 20px;
+            font-size: 14px;
+            color: #888;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-screen">
-        <div id="player" class="box"></div>
-        <p style="position: absolute; bottom: 40px; text-align: center; width: 100%;">
-            Press SPACE or TAP Screen to Jump
-        </p>
+    <div id="game-container">
+        <div id="instructions">
+            SPACE to Jump | TAP anywhere on iPad/Phone
+        </div>
+        
+        <div id="player"></div>
+        <div id="ground"></div>
     </div>
 
     <script>
         const player = document.getElementById('player');
         let isJumping = false;
 
-        function triggerJump() {
-            if (isJumping) return; // Prevent double-jumping mid-air
-            
+        function jump() {
+            if (isJumping) return;
             isJumping = true;
-            player.classList.add('jump');
-            
-            console.log("Jump Triggered!");
 
+            // Add the jump class
+            player.classList.add('jumping');
+
+            // Remove it after the animation finishes
             setTimeout(() => {
-                player.classList.remove('jump');
+                player.classList.remove('jumping');
                 isJumping = false;
-            }, 300); // Match this to your jump speed
+            }, 300); 
         }
 
-        // 1. PC Keyboard
+        // --- CONTROLS ---
+
+        // PC Spacebar
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
-                triggerJump();
+                jump();
             }
         });
 
-        // 2. iPad/Phone Touch (Instant)
+        // Mobile/iPad Tap (Works anywhere on screen)
         window.addEventListener('touchstart', (e) => {
-            // Check if user is tapping the screen (and not a button if you add one later)
-            if (e.target.id === 'game-screen' || e.target.id === 'player' || e.target.tagName === 'BODY') {
-                e.preventDefault(); 
-                triggerJump();
-            }
+            e.preventDefault(); // Stops iPad from double-tap zooming
+            jump();
         }, { passive: false });
 
-        // 3. Fallback Click (For some iPad configurations)
-        window.addEventListener('click', (e) => {
-            triggerJump();
+        // Fallback for some browsers
+        window.addEventListener('mousedown', (e) => {
+            if(e.button === 0) jump();
         });
 
     </script>
