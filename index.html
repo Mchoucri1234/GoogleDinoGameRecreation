@@ -165,7 +165,7 @@
                 if (dino.x < o.x + o.w - 20 && dino.x + dino.w - 20 > o.x && 
                     dino.y < o.y + o.h - 10 && dino.y + dino.h - 10 > o.y) {
                     isGameOver = true;
-                    statusDiv.innerHTML = "GAME OVER<br>TAP TO RESTART";
+                    statusDiv.innerHTML = "GAME OVER<br>TAP OR PRESS SPACE TO RESTART";
                 }
             });
             obstacles = obstacles.filter(o => o.x > -200);
@@ -212,4 +212,5 @@
     </script>
 </body>
 </html>
+
 
