@@ -10,7 +10,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden; /* Prevents bouncing/scrolling on iPad */
+            overflow: hidden;
             background-color: #222;
             color: white;
             display: flex;
@@ -18,8 +18,7 @@
             align-items: center;
             justify-content: center;
             font-family: sans-serif;
-            /* Tells the browser NOT to zoom when tapping fast */
-            touch-action: manipulation; 
+            touch-action: none; /* Prevents ALL browser gestures like pinch-to-zoom */
         }
 
         #game-screen {
@@ -29,6 +28,8 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            user-select: none; /* Prevents text selection while tapping */
+            -webkit-user-select: none;
         }
 
         .box {
@@ -38,9 +39,8 @@
             transition: transform 0.1s;
         }
 
-        /* Visual feedback when jumping */
         .jump {
-            transform: translateY(-100px);
+            transform: translateY(-150px); /* Increased jump height for visibility */
             background-color: #ff00ff;
         }
     </style>
@@ -49,44 +49,51 @@
 
     <div id="game-screen">
         <div id="player" class="box"></div>
-        <p style="position: absolute; bottom: 20px;">Press SPACE TO JUMP AND START GAME OR ON MOBILE AND IPAD TAP ON Screen TO START AND TO JUMP</p>
+        <p style="position: absolute; bottom: 40px; text-align: center; width: 100%;">
+            Press SPACE or TAP Screen to Jump
+        </p>
     </div>
 
     <script>
         const player = document.getElementById('player');
+        let isJumping = false;
 
-        // This is your main "Action" function
         function triggerJump() {
-            // This is where your game logic goes
+            if (isJumping) return; // Prevent double-jumping mid-air
+            
+            isJumping = true;
             player.classList.add('jump');
             
-            // Remove the class after a short delay so it can jump again
+            console.log("Jump Triggered!");
+
             setTimeout(() => {
                 player.classList.remove('jump');
-            }, 200);
-            
-            console.log("Input detected!");
+                isJumping = false;
+            }, 300); // Match this to your jump speed
         }
 
-        // --- THE BRIDGE CODE ---
-
-        // 1. Listen for PC Spacebar
+        // 1. PC Keyboard
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
-                e.preventDefault(); // Prevents page from jumping down
+                e.preventDefault();
                 triggerJump();
             }
         });
 
-        // 2. Listen for iPad/Phone Taps
-        // 'touchstart' is instant; 'click' has a delay on mobile
+        // 2. iPad/Phone Touch (Instant)
         window.addEventListener('touchstart', (e) => {
-            // Prevents the "zoom" or "context menu" from popping up
-            e.preventDefault(); 
-            triggerJump();
+            // Check if user is tapping the screen (and not a button if you add one later)
+            if (e.target.id === 'game-screen' || e.target.id === 'player' || e.target.tagName === 'BODY') {
+                e.preventDefault(); 
+                triggerJump();
+            }
         }, { passive: false });
+
+        // 3. Fallback Click (For some iPad configurations)
+        window.addEventListener('click', (e) => {
+            triggerJump();
+        });
 
     </script>
 </body>
 </html>
-
