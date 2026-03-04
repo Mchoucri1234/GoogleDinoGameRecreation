@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mohamed's Dino Run</title>
+    <title>Mohamed's Dino Run - Dynamic Difficulty</title>
     <style>
         body { 
             margin: 0; 
             background: #87CEEB; 
             overflow: hidden; 
             font-family: 'Courier New', Courier, monospace; 
-            /* Prevents pulling to refresh on mobile */
             overscroll-behavior: none; 
         }
         
         canvas { 
             display: block; 
             background: #87CEEB; 
-            touch-action: none; /* Critical for mobile: stops scrolling while playing */
+            touch-action: none;
         }
 
         #status { 
@@ -26,15 +25,14 @@
             left: 50%; 
             transform: translateX(-50%);
             color: #333; 
-            font-size: 5vw; /* Responsive size based on screen width */
+            font-size: 5vw; 
             font-weight: bold; 
             text-align: center;
             text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
             width: 90%;
-            pointer-events: none; /* Let clicks pass through to the canvas */
+            pointer-events: none;
         }
 
-        /* Adjust text for larger screens like iPad/PC so it doesn't get TOO big */
         @media (min-width: 768px) {
             #status { font-size: 28px; }
         }
@@ -66,7 +64,7 @@
             images[key].src = imagePaths[key];
             images[key].onload = () => {
                 if (++loadedImages === totalImages) {
-                    statusDiv.innerHTML = "READY?<br>TAP ON SCREEN OR PRESS SPACE TO START";
+                    statusDiv.innerHTML = "READY?<br>TAP OR PRESS SPACE TO START";
                     resize();
                     initGame();
                     requestAnimationFrame(drawLoop);
@@ -79,7 +77,6 @@
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            // Place ground relative to screen height
             const groundY = canvas.height - 135;
             if (dino) dino.y = groundY; 
         }
@@ -87,7 +84,6 @@
 
         function initGame() {
             const groundY = canvas.height - 135;
-            // Responsive dino size (smaller on mobile)
             const sizeMult = window.innerWidth < 600 ? 0.8 : 1;
             dino = { 
                 x: 50, 
@@ -99,17 +95,18 @@
             };
             obstacles = [];
             clouds = []; 
-            gameSpeed = window.innerWidth < 600 ? 4 : 5; // Slightly faster feel on mobile
+            
+            // ADJUSTED: Start much slower (was 5, now 3.5)
+            gameSpeed = 3.5; 
+            
             score = 0;
             frameCount = 0;
             isGameOver = false;
             gameStarted = false;
         }
 
-        // INPUT HANDLING (Universal)
         function handleAction(e) {
-            if (e) e.preventDefault(); // Prevent double triggers on some mobile browsers
-
+            if (e) e.preventDefault(); 
             if (!gameStarted) {
                 gameStarted = true;
                 statusDiv.innerText = "";
@@ -127,8 +124,6 @@
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' || e.code === 'ArrowUp') handleAction();
         });
-
-        // Touch listener for Mobile/iPad
         window.addEventListener('touchstart', handleAction, { passive: false });
 
         function update() {
@@ -145,7 +140,16 @@
                 dino.grounded = true;
             }
 
-            gameSpeed += 0.0015; 
+            // --- DIFFICULTY LOGIC ---
+            // 60 frames per second * 10 seconds = 600 frames
+            if (frameCount < 600) {
+                // The first 10 seconds: stay very slow
+                gameSpeed += 0.0005; 
+            } else {
+                // After 10 seconds: ramp up the speed significantly
+                gameSpeed += 0.006; 
+            }
+
             score += (gameSpeed / 40);
 
             if (Math.random() < 0.01) {
@@ -153,19 +157,18 @@
             }
             clouds.forEach(c => c.x -= 1.5);
 
-            let spawnInterval = Math.max(50, Math.floor(500 / gameSpeed));
+            // Adjust spawn rate so it stays easy initially, then gets hectic
+            let spawnInterval = Math.max(30, Math.floor(700 / gameSpeed));
             if (frameCount % spawnInterval === 0) {
-                // Adjusting hitboxes to be more forgiving on touch screens
                 obstacles.push({ x: canvas.width, y: groundLevel - 45, w: 90, h: 90 });
             }
 
             obstacles.forEach(o => {
                 o.x -= gameSpeed;
-                // Collision logic
                 if (dino.x < o.x + o.w - 20 && dino.x + dino.w - 20 > o.x && 
                     dino.y < o.y + o.h - 10 && dino.y + dino.h - 10 > o.y) {
                     isGameOver = true;
-                    statusDiv.innerHTML = "GAME OVER<br>TAP OR PRESS SPACE TO RESTART";
+                    statusDiv.innerHTML = "GAME OVER<br>TAP TO RESTART";
                 }
             });
             obstacles = obstacles.filter(o => o.x > -200);
@@ -180,10 +183,8 @@
             const groundHeight = 110;
             const groundTop = canvas.height - groundHeight;
             
-            // Sand
             ctx.fillStyle = "#f2d16b"; 
             ctx.fillRect(0, groundTop, canvas.width, groundHeight);
-            // Ground Line
             ctx.fillStyle = "#dcc06b"; 
             ctx.fillRect(0, groundTop, canvas.width, 6);
 
@@ -197,7 +198,6 @@
                 ctx.drawImage(images.cactus, o.x, o.y, o.w, o.h);
             });
 
-            // Scoreboard (Adjusted for mobile visibility)
             ctx.fillStyle = "#333";
             const fontSize = window.innerWidth < 600 ? 18 : 22;
             ctx.font = `bold ${fontSize}px 'Courier New'`;
@@ -212,5 +212,3 @@
     </script>
 </body>
 </html>
-
-
