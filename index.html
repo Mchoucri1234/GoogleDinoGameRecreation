@@ -66,7 +66,7 @@
             images[key].src = imagePaths[key];
             images[key].onload = () => {
                 if (++loadedImages === totalImages) {
-                    statusDiv.innerHTML = "READY?<br>TAP OR PRESS SPACE TO START";
+                    statusDiv.innerHTML = "READY?<br>TAP ON SCREEN OR PRESS SPACE TO START";
                     resize();
                     initGame();
                     requestAnimationFrame(drawLoop);
@@ -212,3 +212,4 @@
     </script>
 </body>
 </html>
+
