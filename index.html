@@ -40,7 +40,7 @@
             images[key].src = imagePaths[key];
             images[key].onload = () => {
                 if (++loadedImages === totalImages) {
-                    statusDiv.innerText = "Ready? - PRESS SPACE TO START or tap on your screen on mobile!!";
+                    statusDiv.innerText = "Ready? - PRESS SPACE TO START AND JUMP OR ON MOBILE AND IPAD TAP ON YOUR SCREEN TO START GAME AND JUMP";
                     resize();
                     initGame();
                     requestAnimationFrame(drawLoop);
