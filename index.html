@@ -2,175 +2,84 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mohamed's Dino Mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Tap Test</title>
     <style>
-        body { 
-            margin: 0; 
-            background: #87CEEB; 
-            overflow: hidden; 
-            font-family: 'Courier New', Courier, monospace; 
-            /* Prevents pull-to-refresh and accidental zooming */
-            touch-action: none; 
-            -webkit-user-select: none;
-            user-select: none;
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
         }
-        canvas { display: block; background: #87CEEB; }
-        #status { 
-            position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
-            color: #333; font-size: 20px; font-weight: bold; text-align: center;
-            width: 80%; pointer-events: none;
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 90%;
+        }
+
+        /* The Button: Using 'cursor: pointer' is a hint to iOS that it's clickable */
+        .touch-button {
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer; 
+            transition: transform 0.1s, background-color 0.2s;
+            /* Prevents the grey highlight box on iOS */
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        /* Visual feedback for PC */
+        .touch-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Visual feedback for iPad/Mobile Taps */
+        .touch-button:active {
+            transform: scale(0.95);
+            background-color: #004494;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <div id="status">TAP SCREEN TO START</div>
-    <canvas id="gameCanvas"></canvas>
+
+    <div class="card">
+        <h2>Device Compatibility Test</h2>
+        <p>Tap the button below. It works on Mouse, Trackpad, and Touch.</p>
+        
+        <button id="myButton" class="touch-button">Click / Tap Me</button>
+        
+        <div id="status">Waiting for interaction...</div>
+    </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('myButton');
+        const status = document.getElementById('status');
+        let count = 0;
 
-        let dino, obstacles, clouds, gameSpeed, isGameOver, score, frameCount, gameStarted;
-
-        // Using a simple flag since we aren't loading external images for this demo
-        // If you have your images, you can re-enable the image loading logic.
-        const assetsLoaded = true; 
-
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if (dino) {
-                dino.y = canvas.height - 135;
-            }
-        }
-
-        function initGame() {
-            const groundY = canvas.height - 135;
-            // Slightly smaller hitboxes for mobile playability
-            dino = { x: 50, y: groundY, w: 50, h: 50, dy: 0, grounded: true };
-            obstacles = [];
-            clouds = []; 
-            gameSpeed = 4; 
-            score = 0;
-            frameCount = 0;
-            isGameOver = false;
-            gameStarted = false;
-        }
-
-        // --- INPUT HANDLING ---
-        function handleInput(e) {
-            if (e) e.preventDefault(); // Stop scrolling/bouncing
-
-            if (!gameStarted) {
-                gameStarted = true;
-                statusDiv.innerText = "";
-                return;
-            }
-
-            if (isGameOver) {
-                initGame();
-                statusDiv.innerText = "";
-            } else if (dino.grounded) {
-                dino.dy = -16; // Jumping force
-                dino.grounded = false;
-            }
-        }
-
-        // Keyboard support
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') handleInput(e);
+        // The 'click' event is universal. 
+        // Modern browsers translate a 'tap' into a 'click' automatically.
+        btn.addEventListener('click', function(e) {
+            count++;
+            status.innerText = `Success! Interaction count: ${count}`;
+            console.log("Button interacted with at:", new Date().toLocaleTimeString());
         });
-
-        // Mobile Touch support
-        window.addEventListener('touchstart', handleInput, { passive: false });
-
-        function update() {
-            if (!gameStarted || isGameOver) return;
-
-            frameCount++;
-            dino.dy += 0.8; // Gravity
-            dino.y += dino.dy;
-            
-            const groundLevel = canvas.height - 100 - dino.h;
-
-            if (dino.y > groundLevel) {
-                dino.y = groundLevel;
-                dino.dy = 0;
-                dino.grounded = true;
-            }
-
-            gameSpeed += 0.001; 
-            score += 0.1;
-
-            // Spawn Clouds
-            if (frameCount % 120 === 0) {
-                clouds.push({ x: canvas.width, y: Math.random() * 100 + 50, w: 60, h: 20 });
-            }
-            clouds.forEach(c => c.x -= 1);
-
-            // Spawn Obstacles
-            let spawnInterval = Math.max(50, Math.floor(300 / gameSpeed));
-            if (frameCount % spawnInterval === 0) {
-                obstacles.push({ x: canvas.width, y: canvas.height - 100 - 40, w: 30, h: 40 });
-            }
-
-            obstacles.forEach(o => {
-                o.x -= gameSpeed;
-                // Collision Logic
-                if (dino.x < o.x + o.w && dino.x + dino.w > o.x && 
-                    dino.y < o.y + o.h && dino.y + dino.h > o.y) {
-                    isGameOver = true;
-                    statusDiv.innerText = "GAME OVER\nTAP TO RESTART";
-                }
-            });
-            obstacles = obstacles.filter(o => o.x > -100);
-        }
-
-        function draw() {
-            // Background
-            ctx.fillStyle = "#87CEEB"; 
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Clouds (Simple Rectangles)
-            ctx.fillStyle = "white";
-            clouds.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
-
-            // Ground
-            const groundHeight = 100;
-            const groundTop = canvas.height - groundHeight;
-            ctx.fillStyle = "#f2d16b"; 
-            ctx.fillRect(0, groundTop, canvas.width, groundHeight);
-
-            // Dino (Placeholder: Green Square)
-            ctx.fillStyle = "#228B22";
-            ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
-
-            // Obstacles (Placeholder: Red Rects)
-            ctx.fillStyle = "#B22222";
-            obstacles.forEach(o => {
-                ctx.fillRect(o.x, o.y, o.w, o.h);
-            });
-
-            // Score
-            ctx.fillStyle = "#333";
-            ctx.font = "bold 20px 'Courier New'";
-            ctx.fillText(`SCORE: ${Math.floor(score)}`, 20, 40);
-        }
-
-        function drawLoop() {
-            update();
-            draw();
-            requestAnimationFrame(drawLoop);
-        }
-
-        // Initialize
-        resize();
-        initGame();
-        window.addEventListener('resize', resize);
-        requestAnimationFrame(drawLoop);
-
     </script>
 </body>
 </html>
